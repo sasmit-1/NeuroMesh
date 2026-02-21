@@ -1,0 +1,22 @@
+#root {
+  max-width: 100vw;
+  margin: 0 auto;
+  text-align: center;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0a0a0a; /* Sleek dark gray/black */
+  color: #00ffcc; /* Medical neon blue/green */
+  font-family: sans-serif;
+  overflow: hidden; /* Stops scrollbars when the 3D canvas is full screen */
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
