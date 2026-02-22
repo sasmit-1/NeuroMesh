@@ -4,6 +4,7 @@ import numpy as np
 import pydicom
 from skimage.measure import marching_cubes
 from PIL import Image
+import trimesh # NEW: The geometry engine
 
 def process_dicom_folder(dicom_folder_path):
     """Reads real DICOM files, digging through any nested sub-folders."""
@@ -88,6 +89,7 @@ def generate_dummy_mri():
     return grid, (1.0, 1.0, 1.0)
 
 
+# --- 3. The Marching Cubes Math (UPGRADED WITH TAUBIN SMOOTHING) ---
 def generate_mesh(image_3d, spacing, threshold_percent=None):
     if threshold_percent is None:
         print("Running Marching Cubes at average density...")
@@ -98,7 +100,26 @@ def generate_mesh(image_3d, spacing, threshold_percent=None):
         max_val = np.max(image_3d)
         threshold_level = min_val + (max_val - min_val) * (float(threshold_percent) / 100.0)
         
+    # Generate the raw, jagged surface
     verts, faces, normals, values = marching_cubes(image_3d, level=threshold_level, spacing=spacing)
+    
+    # --- THE NEW SMOOTHING PASS ---
+    print(f"Applying Taubin Smoothing to remove jagged MRI artifacts...")
+    try:
+        # Load the raw math into the trimesh engine
+        mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+        
+        # Run 10 iterations of volume-preserving smoothing
+        trimesh.smoothing.filter_taubin(mesh, iterations=10)
+        
+        # Extract the smoothed coordinates back out
+        verts = mesh.vertices
+        faces = mesh.faces
+        print("Smoothing complete!")
+    except Exception as e:
+        print(f"Warning: Smoothing failed, falling back to raw mesh. Error: {e}")
+    # ------------------------------
+
     print(f"Calculated {len(verts)} vertices and {len(faces)} faces.")
     return verts, faces
 
