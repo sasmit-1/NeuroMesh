@@ -12,3 +12,12 @@ dist/
 
 # Medical Data (Never push patient data to public GitHub)
 sample_mri/
+
+# Ignore Medical Data and Cached Geometry
+backend/sample_mri/
+backend/uploaded_mri/
+*.obj
+
+# Ignore Python Environments (if you haven't already)
+backend/__pycache__/
+backend/venv/
