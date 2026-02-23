@@ -6,7 +6,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 const Viewer3D = () => {
   const mountRef = useRef(null);
   const sceneRef = useRef(new THREE.Scene());
-  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 0, -1), 100));
+  
+  const planeXRef = useRef(new THREE.Plane(new THREE.Vector3(1, 0, 0), 150));
+  const planeYRef = useRef(new THREE.Plane(new THREE.Vector3(0, -1, 0), 150));
+  const planeZRef = useRef(new THREE.Plane(new THREE.Vector3(0, 0, -1), 150));
   
   const skinLayerRef = useRef(null);
   const internalLayerRef = useRef(null);
@@ -19,7 +22,10 @@ const Viewer3D = () => {
   
   const loadIdRef = useRef(Date.now());
   
-  const [clipZ, setClipZ] = useState(100); 
+  const [clipX, setClipX] = useState(150); 
+  const [clipY, setClipY] = useState(150); 
+  const [clipZ, setClipZ] = useState(150); 
+  
   const [isCalculating, setIsCalculating] = useState(false);
   const [metadata, setMetadata] = useState(null);
 
@@ -30,12 +36,10 @@ const Viewer3D = () => {
   const [measurementPoints, setMeasurementPoints] = useState([]);
   const [calculatedDistance, setCalculatedDistance] = useState(null);
 
-  // THE FIX: State to hold our unique cache-busting timestamp
   const [sessionToken, setSessionToken] = useState(Date.now());
 
   const fetchMetadata = async (token) => {
     try {
-      // Append the token to force a fresh download
       const response = await fetch(`http://127.0.0.1:8000/api/metadata?t=${token}`);
       if (response.ok) {
         const data = await response.json();
@@ -47,7 +51,6 @@ const Viewer3D = () => {
   };
 
   const fetchAndLoadSegmentedModel = async () => {
-    // Generate a fresh token for this entire pipeline run
     const currentLoadId = Date.now(); 
     loadIdRef.current = currentLoadId;
     setSessionToken(currentLoadId);
@@ -55,6 +58,8 @@ const Viewer3D = () => {
     setIsCalculating(true);
     const loader = new OBJLoader();
     
+    const activePlanes = [planeXRef.current, planeYRef.current, planeZRef.current];
+
     skinMaterialRef.current = new THREE.MeshPhysicalMaterial({
       color: 0xd98880,       
       metalness: 0.1,        
@@ -64,7 +69,7 @@ const Viewer3D = () => {
       transmission: 0.6,     
       depthWrite: false,     
       side: THREE.DoubleSide, 
-      clippingPlanes: [planeRef.current] 
+      clippingPlanes: activePlanes 
     });
 
     const internalMaterial = new THREE.MeshPhysicalMaterial({
@@ -73,20 +78,16 @@ const Viewer3D = () => {
       roughness: 0.6,         
       transparent: false,    
       side: THREE.DoubleSide, 
-      clippingPlanes: [planeRef.current] 
+      clippingPlanes: activePlanes 
     });
 
     const loadObj = (url) => new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject));
 
     try {
-      // THE FIX: Append the cache-busting token so the browser never caches the 3D files!
       const skinObj = await loadObj(`http://127.0.0.1:8000/api/mesh?threshold=15&t=${currentLoadId}`);
       const internalObj = await loadObj(`http://127.0.0.1:8000/api/mesh?threshold=38&t=${currentLoadId}`);
 
-      if (currentLoadId !== loadIdRef.current) {
-        console.warn("Aborted stale 3D load request due to React Strict Mode.");
-        return; 
-      }
+      if (currentLoadId !== loadIdRef.current) return; 
 
       if (currentModelGroupRef.current) {
         sceneRef.current.remove(currentModelGroupRef.current);
@@ -123,14 +124,9 @@ const Viewer3D = () => {
       setShowSkin(true);
       setShowInternal(true);
       
-      if (skinMaterialRef.current) {
-         skinMaterialRef.current.opacity = 0.25;
-         skinMaterialRef.current.transmission = 0.6;
-      }
-      
       clearMeasurement();
       setIsCalculating(false); 
-      fetchMetadata(currentLoadId); // Pass the fresh token
+      fetchMetadata(currentLoadId); 
 
     } catch (error) {
       if (currentLoadId === loadIdRef.current) {
@@ -150,11 +146,17 @@ const Viewer3D = () => {
 
     try {
       const response = await fetch('http://127.0.0.1:8000/api/upload', { method: 'POST', body: formData });
-      if (response.ok) fetchAndLoadSegmentedModel();
+      if (response.ok) {
+          fetchAndLoadSegmentedModel();
+      } else {
+          setIsCalculating(false);
+          alert("Python crashed during the upload! Check your VS Code terminal for the red error text.");
+      }
     } catch (error) {
       console.error("Upload failed:", error);
       setIsCalculating(false);
     }
+    event.target.value = null; 
   };
 
   const toggleSkinVisibility = () => {
@@ -180,14 +182,8 @@ const Viewer3D = () => {
   const toggleMeasurementMode = () => {
     const newMode = !isMeasuring;
     setIsMeasuring(newMode);
-    
-    if (controlsRef.current) {
-      controlsRef.current.enabled = !newMode;
-    }
-    
-    if (!newMode) {
-      clearMeasurement();
-    }
+    if (controlsRef.current) controlsRef.current.enabled = !newMode;
+    if (!newMode) clearMeasurement();
   };
 
   const clearMeasurement = () => {
@@ -214,13 +210,14 @@ const Viewer3D = () => {
 
     const validHit = intersects.find(hit => {
       if (!hit.object.visible) return false;
+      if (hit.point.x < -clipX) return false;
+      if (hit.point.y > clipY) return false; 
       if (hit.point.z > clipZ) return false; 
       return true;
     });
 
     if (validHit) {
       const point = validHit.point;
-
       const sphereGeo = new THREE.SphereGeometry(2, 16, 16);
       const sphereMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
@@ -289,19 +286,38 @@ const Viewer3D = () => {
     };
   }, []);
 
-  const handleClipChange = (e) => {
+  const handleClipXChange = (e) => {
+    const val = parseFloat(e.target.value);
+    setClipX(val);
+    planeXRef.current.constant = val; 
+  };
+  const handleClipYChange = (e) => {
+    const val = parseFloat(e.target.value);
+    setClipY(val);
+    planeYRef.current.constant = val; 
+  };
+  const handleClipZChange = (e) => {
     const val = parseFloat(e.target.value);
     setClipZ(val);
-    planeRef.current.constant = val; 
+    planeZRef.current.constant = val; 
   };
 
+  // THE FIX: Reversed the tracking direction by flipping the minus to a PLUS
   const getActiveSliceIndex = () => {
     if (!metadata) return 0;
-    const percentage = (clipZ + 100) / 200; 
-    let sliceIndex = Math.floor(percentage * metadata.slice_count);
-    if (sliceIndex < 0) sliceIndex = 0;
-    if (sliceIndex >= metadata.slice_count) sliceIndex = metadata.slice_count - 1;
-    return sliceIndex;
+    
+    // Extract exact physical depth of the anatomical data (Slices * Z-Spacing)
+    const physicalDepth = metadata.slice_count * metadata.spacing_tuple[0];
+    const halfDepth = physicalDepth / 2; 
+    
+    // Inverted math maps the 2D viewer in the exact same direction as the 3D cut
+    let percentage = (halfDepth + clipX) / physicalDepth; 
+    
+    // Clamp so the PNG locks if the scalpel is wandering in "empty air"
+    if (percentage < 0) percentage = 0;
+    if (percentage >= 1) percentage = 0.999;
+    
+    return Math.floor(percentage * metadata.slice_count);
   };
 
   const currentSlice = getActiveSliceIndex();
@@ -331,7 +347,7 @@ const Viewer3D = () => {
           <div>VOXEL SIZE: {metadata.voxel_size}</div>
           <div>SLICES:     {metadata.slice_count}</div>
           <div style={{ marginTop: '10px', color: '#ff4d4d', fontWeight: 'bold' }}>
-            ACTIVE SLICE: Z-{currentSlice}
+            ACTIVE 2D SLICE: {currentSlice}
           </div>
         </div>
       )}
@@ -348,9 +364,8 @@ const Viewer3D = () => {
             color: '#4ba3e3', fontSize: '12px', padding: '6px', textAlign: 'center', 
             fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '1px'
           }}>
-            AXIAL SLICE {currentSlice}
+            REFERENCE SLICE {currentSlice}
           </div>
-          {/* THE FIX: Cache bust the 2D images as well! */}
           <img 
             src={`http://127.0.0.1:8000/api/slice/${currentSlice}?t=${sessionToken}`} 
             alt="MRI Slice"
@@ -387,12 +402,33 @@ const Viewer3D = () => {
         <hr style={{ borderColor: 'rgba(75, 163, 227, 0.1)', margin: 0 }} />
 
         <div style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '600', color: '#a0aab5', letterSpacing: '1px' }}>AXIAL SCALPEL</span>
-            <span style={{ fontSize: '12px', color: '#4ba3e3', fontFamily: 'monospace' }}>{clipZ} mm</span>
+          <span style={{ fontSize: '11px', fontWeight: '600', color: '#a0aab5', letterSpacing: '1px', display: 'block', marginBottom: '12px' }}>
+            CLINICAL SCALPELS
+          </span>
+          
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#4ba3e3', fontWeight: 'bold' }}>MAIN SCALPEL (Slices)</span>
+              <span style={{ fontSize: '10px', color: '#4ba3e3', fontFamily: 'monospace' }}>{clipX} mm</span>
+            </div>
+            <input type="range" min="-150" max="150" step="0.5" value={clipX} onChange={handleClipXChange} style={{ width: '100%', cursor: 'pointer', accentColor: '#4ba3e3' }} />
           </div>
-          <input type="range" min="-100" max="100" step="0.5" value={clipZ} onChange={handleClipChange}
-            style={{ width: '100%', cursor: 'pointer', accentColor: '#4ba3e3' }} />
+
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#4ba3e3' }}>AXIS 2</span>
+              <span style={{ fontSize: '10px', color: '#4ba3e3', fontFamily: 'monospace' }}>{clipY} mm</span>
+            </div>
+            <input type="range" min="-150" max="150" step="0.5" value={clipY} onChange={handleClipYChange} style={{ width: '100%', cursor: 'pointer', accentColor: '#4ba3e3' }} />
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#4ba3e3' }}>AXIS 3</span>
+              <span style={{ fontSize: '10px', color: '#4ba3e3', fontFamily: 'monospace' }}>{clipZ} mm</span>
+            </div>
+            <input type="range" min="-150" max="150" step="0.5" value={clipZ} onChange={handleClipZChange} style={{ width: '100%', cursor: 'pointer', accentColor: '#4ba3e3' }} />
+          </div>
         </div>
 
         <hr style={{ borderColor: 'rgba(75, 163, 227, 0.1)', margin: 0 }} />
