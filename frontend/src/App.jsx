@@ -1,12 +1,17 @@
-import './App.css';
-import Viewer3D from './components/Viewer3D'; // Import our new 3D engine
+import React, { useState } from 'react';
+import Viewer3D from './components/Viewer3D';
+import LandingPage from './components/LandingPage';
 
 function App() {
+  const [hasLaunched, setHasLaunched] = useState(false);
+
   return (
-    <div className="app-container">
-      {/* Our 3D Canvas drops in right here */}
-      <Viewer3D />
-      
+    <div style={{ width: '100vw', height: '100vh', background: '#050505' }}>
+      {hasLaunched ? (
+        <Viewer3D />
+      ) : (
+        <LandingPage onLaunch={() => setHasLaunched(true)} />
+      )}
     </div>
   );
 }
