@@ -5,6 +5,7 @@ const LandingPage = ({ onLaunch }) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isBooted, setIsBooted] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [cursorVariant, setCursorVariant] = useState('default');
 
   // 1. FAKE TERMINAL BOOT SEQUENCE
   useEffect(() => {
@@ -15,7 +16,7 @@ const LandingPage = ({ onLaunch }) => {
           setTimeout(() => {
             setIsBooted(true);
             window.scrollTo(0, 0); 
-          }, 400); // Sped up the transition slightly for a snappier feel
+          }, 400); 
           return 100;
         }
         return prev + Math.floor(Math.random() * 20) + 5;
@@ -24,14 +25,40 @@ const LandingPage = ({ onLaunch }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. MOUSE TRACKER FOR CUSTOM CURSOR & BG
+  // 2. MOUSE TRACKER
   useEffect(() => {
     const handleMouseMove = (e) => setMousePos({ x: e.clientX, y: e.clientY });
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // --- COMPONENT: THE BOOT SCREEN ---
+  // 3. X-RAY CURSOR STATES
+  const variants = {
+    default: {
+      x: mousePos.x - 8,
+      y: mousePos.y - 8,
+      height: 16,
+      width: 16,
+      backgroundColor: '#00ffff',
+      mixBlendMode: 'screen',
+      boxShadow: '0 0 20px rgba(0, 255, 255, 1)',
+      transition: { type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }
+    },
+    textHover: {
+      x: mousePos.x - 75,
+      y: mousePos.y - 75,
+      height: 150,
+      width: 150,
+      backgroundColor: '#ffffff',
+      mixBlendMode: 'difference',
+      boxShadow: '0 0 0px transparent',
+      transition: { type: 'spring', stiffness: 250, damping: 20, mass: 0.5 }
+    }
+  };
+
+  const textEnter = () => setCursorVariant('textHover');
+  const textLeave = () => setCursorVariant('default');
+
   if (!isBooted) {
     return (
       <div style={{ width: '100%', height: '100vh', background: '#050505', color: '#00ffff', fontFamily: 'monospace', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', overflow: 'hidden', boxSizing: 'border-box' }}>
@@ -54,36 +81,49 @@ const LandingPage = ({ onLaunch }) => {
     );
   }
 
-  // --- COMPONENT: THE MAIN SCROLLING PAGE ---
   return (
     <div style={{ 
       width: '100%', minHeight: '100vh', background: '#020202', color: '#fff', 
       overflowX: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif',
-      cursor: 'none', // Hides default cursor so we can use our custom animated one
+      cursor: 'none', 
       boxSizing: 'border-box'
     }}>
       
-      {/* CUSTOM ANIMATED CURSOR */}
+      {/* CUSTOM "X-RAY" ANIMATED CURSOR */}
+      <motion.div variants={variants} animate={cursorVariant} style={{ position: 'fixed', top: 0, left: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 9999 }} />
+
+      {/* BACKGROUND 1: MORE VISIBLE FILM GRAIN */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        opacity: 0.08
+      }} />
+
+      {/* BACKGROUND 2: BRIGHTER AMBIENT GLOW */}
       <motion.div 
-        animate={{ x: mousePos.x - 8, y: mousePos.y - 8 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }}
+        animate={{ x: mousePos.x - 400, y: mousePos.y - 400 }}
+        transition={{ type: 'tween', ease: 'easeOut', duration: 1.5 }} 
         style={{
-          position: 'fixed', top: 0, left: 0, width: '16px', height: '16px',
-          background: '#00ffff', borderRadius: '50%', pointerEvents: 'none', zIndex: 9999,
-          boxShadow: '0 0 15px #00ffff', mixBlendMode: 'screen'
+          position: 'fixed', top: 0, left: 0, width: '800px', height: '800px', zIndex: 0, pointerEvents: 'none',
+          background: 'radial-gradient(circle, rgba(0,255,255,0.12) 0%, transparent 60%)',
         }} 
       />
 
-      {/* GLOBAL BACKGROUND: INFINITELY PANNING GRID WITH FLASHLIGHT MASK */}
+      {/* BACKGROUND 3: BREATHING PANNING GRID */}
       <motion.div 
-        animate={{ backgroundPosition: ['0px 0px', '40px 40px'] }}
-        transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
+        animate={{ 
+          backgroundPosition: ['0px 0px', '40px 40px'],
+          opacity: [0.6, 1, 0.6] 
+        }}
+        transition={{ 
+          backgroundPosition: { repeat: Infinity, duration: 4, ease: 'linear' },
+          opacity: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
+        }}
         style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none',
-          backgroundImage: 'linear-gradient(rgba(0, 255, 255, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.08) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
-          WebkitMaskImage: `radial-gradient(circle 600px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`,
-          maskImage: `radial-gradient(circle 600px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`,
+          WebkitMaskImage: `radial-gradient(circle 900px at 50% 50%, black 0%, transparent 100%)`,
         }} 
       />
 
@@ -92,21 +132,22 @@ const LandingPage = ({ onLaunch }) => {
         
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.8 }}
           style={{ position: 'absolute', top: '40px', left: '40px', color: '#4ba3e3', fontFamily: 'monospace', fontSize: '11px', letterSpacing: '2px' }}>
-          <div>STATUS: <span style={{ color: '#00ffff' }}>ONLINE</span></div>
-          <div>WEBGL:  <span style={{ color: '#00ffff' }}>ACCELERATED</span></div>
+          <div>STATUS: <span style={{ color: '#00ffff', textShadow: '0 0 8px #00ffff' }}>ONLINE</span></div>
+          <div>WEBGL:  <span style={{ color: '#00ffff', textShadow: '0 0 8px #00ffff' }}>ACCELERATED</span></div>
         </motion.div>
 
         <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
-          {/* THE FIX: Thicker Stroke, Minimal Animation */}
           <motion.h1
+            onMouseEnter={textEnter} onMouseLeave={textLeave}
             initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: "easeOut" }}
-            style={{ fontSize: 'clamp(80px, 13vw, 200px)', fontWeight: '900', color: 'transparent', WebkitTextStroke: '3px rgba(255,255,255,0.4)', lineHeight: '0.85', letterSpacing: '-0.02em', margin: 0 }}
+            style={{ fontSize: 'clamp(80px, 13vw, 200px)', fontWeight: '900', color: 'transparent', WebkitTextStroke: '3px rgba(255,255,255,0.6)', lineHeight: '0.85', letterSpacing: '-0.02em', margin: 0, cursor: 'none' }}
           >
             NEURO
           </motion.h1>
           <motion.h1
+            onMouseEnter={textEnter} onMouseLeave={textLeave}
             initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-            style={{ fontSize: 'clamp(80px, 13vw, 200px)', fontWeight: '900', color: '#fff', lineHeight: '0.85', letterSpacing: '-0.02em', margin: 0 }}
+            style={{ fontSize: 'clamp(80px, 13vw, 200px)', fontWeight: '900', color: '#fff', lineHeight: '0.85', letterSpacing: '-0.02em', margin: 0, cursor: 'none', textShadow: '0 10px 30px rgba(0,255,255,0.3)' }}
           >
             MESH.
           </motion.h1>
@@ -119,28 +160,27 @@ const LandingPage = ({ onLaunch }) => {
 
         <motion.button
           onClick={onLaunch}
+          onMouseEnter={textEnter} onMouseLeave={textLeave}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.8 }}
-          whileHover={{ scale: 1.02, backgroundColor: '#00ffff', color: '#000' }} whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(0,255,255,0.4)', background: 'rgba(0,255,255,0.05)' }} whileTap={{ scale: 0.95 }}
           style={{
             marginTop: '50px', padding: '18px 50px', background: 'transparent', border: '1px solid #00ffff', 
             borderRadius: '100px', color: '#00ffff', fontSize: '13px', fontWeight: 'bold', letterSpacing: '3px', 
-            cursor: 'none', transition: 'background 0.3s ease, color 0.3s ease', zIndex: 10 // Cursor none so custom cursor hovers over it
+            cursor: 'none', transition: 'all 0.3s ease', zIndex: 10 
           }}
         >
           ENTER ENGINE
         </motion.button>
 
-        {/* Minimal Scroll Indicator */}
         <motion.div 
           animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          style={{ position: 'absolute', bottom: '40px', color: 'rgba(255,255,255,0.4)', fontSize: '11px', letterSpacing: '2px', fontFamily: 'monospace' }}
+          style={{ position: 'absolute', bottom: '40px', color: 'rgba(255,255,255,0.5)', fontSize: '11px', letterSpacing: '2px', fontFamily: 'monospace' }}
         >
           SCROLL TO EXPLORE ↓
         </motion.div>
       </section>
 
-      {/* ================= SECTION 2: ABOUT THE PROJECT ================= */}
-      {/* THE FIX: Constrained width to 1200px and centered with margin: 0 auto */}
+      {/* ================= SECTION 2: BENTO BOX ================= */}
       <section style={{ position: 'relative', width: '100%', padding: '100px 5%', zIndex: 5 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6, ease: "easeOut" }}>
@@ -149,38 +189,37 @@ const LandingPage = ({ onLaunch }) => {
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
               
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff' }}>01.</div>
+              <motion.div onMouseEnter={textEnter} onMouseLeave={textLeave} whileHover={{ y: -5, borderColor: '#00ffff', backgroundColor: 'rgba(0,255,255,0.05)' }} transition={{ duration: 0.2 }} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px', cursor: 'none' }}>
+                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff', fontWeight: 'bold' }}>01.</div>
                 <h4 style={{ fontSize: '18px', marginBottom: '10px', fontWeight: '600' }}>Omnidirectional Scalpel</h4>
                 <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>Three independent clipping planes mapped to X, Y, and Z axes, allowing real-time cross-sectional analysis of complex clinical geometries.</p>
-              </div>
+              </motion.div>
 
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff' }}>02.</div>
+              <motion.div onMouseEnter={textEnter} onMouseLeave={textLeave} whileHover={{ y: -5, borderColor: '#00ffff', backgroundColor: 'rgba(0,255,255,0.05)' }} transition={{ duration: 0.2 }} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px', cursor: 'none' }}>
+                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff', fontWeight: 'bold' }}>02.</div>
                 <h4 style={{ fontSize: '18px', marginBottom: '10px', fontWeight: '600' }}>Taubin Geometry Smoothing</h4>
                 <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>Raw Marching Cubes arrays are passed through an enterprise-grade, non-shrinking smoothing algorithm to eliminate voxel-stepping artifacts.</p>
-              </div>
+              </motion.div>
 
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff' }}>03.</div>
+              <motion.div onMouseEnter={textEnter} onMouseLeave={textLeave} whileHover={{ y: -5, borderColor: '#00ffff', backgroundColor: 'rgba(0,255,255,0.05)' }} transition={{ duration: 0.2 }} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px', cursor: 'none' }}>
+                <div style={{ fontSize: '20px', marginBottom: '15px', color: '#00ffff', fontWeight: 'bold' }}>03.</div>
                 <h4 style={{ fontSize: '18px', marginBottom: '10px', fontWeight: '600' }}>WebGL Acceleration</h4>
                 <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>Powered by Three.js and dynamic chunk-loading, capable of rendering over 400,000 polygons locally at 60FPS without cloud dependencies.</p>
-              </div>
+              </motion.div>
 
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 3: ABOUT ME (THE ARCHITECT) ================= */}
-      {/* THE FIX: Constrained width to 900px and centered it perfectly */}
+      {/* ================= SECTION 3: THE ARCHITECT ================= */}
       <section style={{ position: 'relative', width: '100%', padding: '100px 5% 150px 5%', zIndex: 5 }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6, ease: "easeOut" }}
-            style={{ background: '#080c10', border: '1px solid rgba(0,255,255,0.15)', borderRadius: '24px', padding: '60px', position: 'relative', overflow: 'hidden' }}
+            style={{ background: '#080c10', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '24px', padding: '60px', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
           >
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '30px', background: 'rgba(0,255,255,0.05)', borderBottom: '1px solid rgba(0,255,255,0.1)', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '8px' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '30px', background: 'rgba(0,255,255,0.1)', borderBottom: '1px solid rgba(0,255,255,0.2)', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '8px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff4d4d' }}></div>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffcc00' }}></div>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#00cc00' }}></div>
@@ -196,17 +235,17 @@ const LandingPage = ({ onLaunch }) => {
               </p>
 
               <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                <a href="YOUR_GITHUB_LINK_HERE" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', cursor: 'none' }}>
-                  <motion.div whileHover={{ scale: 1.02, background: 'rgba(255,255,255,0.1)' }} whileTap={{ scale: 0.98 }}
-                    style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.2s ease' }}>
+                <a href="https://github.com/sasmit-1" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', cursor: 'none' }}>
+                  <motion.div onMouseEnter={textEnter} onMouseLeave={textLeave} whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.1)', borderColor: '#fff' }} whileTap={{ scale: 0.95 }}
+                    style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s ease' }}>
                     <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                     GITHUB
                   </motion.div>
                 </a>
                 
-                <a href="YOUR_LINKEDIN_LINK_HERE" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', cursor: 'none' }}>
-                  <motion.div whileHover={{ scale: 1.02, background: 'rgba(0,119,181,0.1)', borderColor: '#0077b5' }} whileTap={{ scale: 0.98 }}
-                    style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.2s ease, border-color 0.2s ease' }}>
+                <a href="https://www.linkedin.com/in/sasmit-mondal-361229390/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', cursor: 'none' }}>
+                  <motion.div onMouseEnter={textEnter} onMouseLeave={textLeave} whileHover={{ scale: 1.05, background: 'rgba(0,119,181,0.2)', borderColor: '#0077b5' }} whileTap={{ scale: 0.95 }}
+                    style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s ease' }}>
                     <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
                     LINKEDIN
                   </motion.div>
@@ -217,7 +256,7 @@ const LandingPage = ({ onLaunch }) => {
         </div>
       </section>
 
-      {/* FOOTER MARQUEE (Fixed at bottom so it doesn't break layout) */}
+      {/* FOOTER MARQUEE */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', overflow: 'hidden', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', background: '#020202', zIndex: 10 }}>
         <motion.div animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, ease: 'linear', duration: 25 }}
           style={{ whiteSpace: 'nowrap', display: 'inline-block', color: 'rgba(255,255,255,0.2)', fontSize: '10px', letterSpacing: '3px', fontFamily: 'monospace' }}>

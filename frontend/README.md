@@ -1,16 +1,64 @@
-# React + Vite
+# 🧠 NeuroMesh Engine
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+NeuroMesh is a high-performance, browser-native 3D rendering pipeline for clinical DICOM processing and spatial analysis. It bridges the gap between heavy mathematical processing in Python and lightning-fast WebGL rendering in the browser.
 
-Currently, two official plugins are available:
+Built to run entirely locally without cloud dependencies, it leverages the Marching Cubes algorithm and Taubin geometry smoothing to generate highly accurate 3D medical models from standard 2D MRI and CT scans.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Key Features
+- **Omnidirectional Scalpel:** Real-time 3D clipping planes mapped to X, Y, and Z axes for complex cross-sectional analysis.
+- **2D/3D Synchronization:** An interactive reference monitor that tracks the physical depth of the 3D scalpel to display the exact corresponding 2D DICOM slice.
+- **Taubin Smoothing:** Enterprise-grade algorithm that eliminates voxel-stepping artifacts without shrinking the underlying geometry.
+- **WebGL Acceleration:** Powered by Three.js to render over 400,000 polygons locally at 60FPS.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Architecture
+NeuroMesh is a split-stack application:
+* **Backend:** Python (FastAPI, Trimesh, Scikit-Image, Pydicom) handling the heavy lifting of array extraction, segmentation, and mesh generation.
+* **Frontend:** React + Vite (Three.js, Framer Motion) handling the WebGL visualization and cinematic user interface.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 💻 How to Run Locally
+
+### Prerequisites
+Make sure you have [Python 3.8+](https://www.python.org/downloads/) and [Node.js](https://nodejs.org/) installed on your machine.
+
+### Setup Instructions
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/sasmit-1/neuromesh.git](https://github.com/sasmit-1/neuromesh.git)
+   cd neuromesh
+
+2   **START THE PYTHON BACKEND**
+
+   cd backend
+python -m venv venv
+
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+cd ..
+
+3. **SET UP REACT BACKEND**
+cd frontend
+npm install
+cd ..
+
+⚡ Starting the Engine (Windows)
+If you are on Windows, simply double-click the included start_engine.bat file in the root directory. It will automatically activate your virtual environment, launch both the FastAPI server and the React frontend, and bind them together.
+
+Manual Start:
+If you prefer to start them manually or are on Mac/Linux:
+
+Terminal 1: cd backend && venv\Scripts\activate && uvicorn main:app --reload
+
+Terminal 2: cd frontend && npm run dev
+
+Navigate to http://localhost:5173 in your browser to enter the engine.
+
+Architect: Sasmit Mondal | GitHub
